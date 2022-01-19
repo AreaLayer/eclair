@@ -1286,10 +1286,14 @@ class Channel(val nodeParams: NodeParams, val wallet: OnChainChannelFunder, val 
       log.info("shutting down")
       stop(FSM.Normal)
 
-    case Event(MakeFundingTxResponse(fundingTx, _, _), _) =>
-      // this may happen if connection is lost, or remote sends an error while we were waiting for the funding tx to be created by our wallet
-      // in that case we rollback the tx
-      wallet.rollback(fundingTx)
+    case Event(resp: MakeFundingTxResponse, _) =>
+      resp.fundingTx() match {
+        case Left(error) => log.error(s"Cannot extract funding tx from psbt (${error.toString}")
+        case Right(fundingTx) =>
+          // this may happen if connection is lost, or remote sends an error while we were waiting for the funding tx to be created by our wallet
+          // in that case we rollback the tx
+          wallet.rollback(fundingTx)
+      }
       stay()
 
     case Event(INPUT_DISCONNECTED, _) => stay() // we are disconnected, but it doesn't matter anymore
