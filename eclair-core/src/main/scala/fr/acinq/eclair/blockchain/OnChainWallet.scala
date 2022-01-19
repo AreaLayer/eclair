@@ -16,8 +16,11 @@
 
 package fr.acinq.eclair.blockchain
 
+import fr.acinq.bitcoin.psbt.{Psbt, UpdateFailure}
 import fr.acinq.bitcoin.scalacompat.Crypto.PublicKey
 import fr.acinq.bitcoin.scalacompat.{ByteVector32, Satoshi, Transaction}
+import fr.acinq.bitcoin.scalacompat.DeterministicWallet.ExtendedPublicKey
+import fr.acinq.bitcoin.scalacompat.{ByteVector32, KotlinUtils, Satoshi, Transaction}
 import fr.acinq.eclair.blockchain.fee.FeeratePerKw
 import scodec.bits.ByteVector
 
@@ -45,7 +48,7 @@ trait OnChainChannelFunder {
   def publishTransaction(tx: Transaction)(implicit ec: ExecutionContext): Future[ByteVector32]
 
   /** Create a fully signed channel funding transaction with the provided pubkeyScript. */
-  def makeFundingTx(pubkeyScript: ByteVector, amount: Satoshi, feeRate: FeeratePerKw)(implicit ec: ExecutionContext): Future[MakeFundingTxResponse]
+  def makeFundingTx(chainHash: ByteVector32, localFundingKey: ExtendedPublicKey, remoteFundingKey: PublicKey, amount: Satoshi, feeRatePerKw: FeeratePerKw)(implicit ec: ExecutionContext): Future[MakeFundingTxResponse]
 
   /**
    * Committing *must* include publishing the transaction on the network.
