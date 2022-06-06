@@ -31,10 +31,9 @@ import fr.acinq.eclair.crypto.ShaChain
 import fr.acinq.eclair.transactions.Transactions.TxOwner
 import fr.acinq.eclair.transactions.{Scripts, Transactions}
 import fr.acinq.eclair.wire.protocol.{AcceptChannel, AnnouncementSignatures, ChannelReady, ChannelTlv, Error, FundingCreated, FundingSigned, OpenChannel, TlvStream}
-import fr.acinq.eclair.{Features, MilliSatoshiLong, RealShortChannelId, randomKey, toLongId}
+import fr.acinq.eclair.{Features, MilliSatoshiLong, RealShortChannelId, UInt64, randomKey, toLongId}
 import scodec.bits.ByteVector
 
-import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -88,7 +87,7 @@ trait ChannelOpenSingleFunded extends SingleFundingHandlers with ErrorHandlers {
         fundingSatoshis = input.fundingAmount,
         pushMsat = input.pushAmount_opt.getOrElse(0 msat),
         dustLimitSatoshis = input.localParams.dustLimit,
-        maxHtlcValueInFlightMsat = input.localParams.maxHtlcValueInFlightMsat,
+        maxHtlcValueInFlightMsat = UInt64(input.localParams.maxHtlcValueInFlightMsat.toLong),
         channelReserveSatoshis = input.localParams.requestedChannelReserve_opt.getOrElse(0 sat),
         htlcMinimumMsat = input.localParams.htlcMinimum,
         feeratePerKw = input.commitTxFeerate,
@@ -123,7 +122,7 @@ trait ChannelOpenSingleFunded extends SingleFundingHandlers with ErrorHandlers {
           val localShutdownScript = if (Features.canUseFeature(localParams.initFeatures, remoteInit.features, Features.UpfrontShutdownScript)) localParams.defaultFinalScriptPubKey else ByteVector.empty
           val accept = AcceptChannel(temporaryChannelId = open.temporaryChannelId,
             dustLimitSatoshis = localParams.dustLimit,
-            maxHtlcValueInFlightMsat = localParams.maxHtlcValueInFlightMsat,
+            maxHtlcValueInFlightMsat = UInt64(localParams.maxHtlcValueInFlightMsat.toLong),
             channelReserveSatoshis = localParams.requestedChannelReserve_opt.getOrElse(0 sat),
             minimumDepth = minimumDepth.getOrElse(0),
             htlcMinimumMsat = localParams.htlcMinimum,
