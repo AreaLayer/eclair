@@ -104,6 +104,7 @@ object TestConstants {
         dustLimit = 1100 sat,
         maxRemoteDustLimit = 1500 sat,
         maxHtlcValueInFlightMsat = 500_000_000 msat,
+        maxHtlcValueInFlightPercent = 100,
         maxAcceptedHtlcs = 100,
         expiryDelta = CltvExpiryDelta(144),
         fulfillSafetyBeforeTimeout = CltvExpiryDelta(6),
@@ -246,6 +247,7 @@ object TestConstants {
         dustLimit = 1000 sat,
         maxRemoteDustLimit = 1500 sat,
         maxHtlcValueInFlightMsat = Long.MaxValue.msat, // Bob has no limit on the combined max value of in-flight htlcs
+        maxHtlcValueInFlightPercent = 100,
         maxAcceptedHtlcs = 30,
         expiryDelta = CltvExpiryDelta(144),
         fulfillSafetyBeforeTimeout = CltvExpiryDelta(6),
