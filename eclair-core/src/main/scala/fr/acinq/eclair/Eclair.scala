@@ -22,7 +22,9 @@ import akka.actor.typed.scaladsl.adapter.ClassicSchedulerOps
 import akka.pattern._
 import akka.util.Timeout
 import com.softwaremill.quicklens.ModifyPimp
+import fr.acinq.bitcoin.psbt.Psbt
 import fr.acinq.bitcoin.scalacompat.Crypto.PublicKey
+import fr.acinq.bitcoin.scalacompat.DeterministicWallet.{ExtendedPublicKey, KeyPath}
 import fr.acinq.bitcoin.scalacompat.{ByteVector32, ByteVector64, Crypto, Satoshi}
 import fr.acinq.eclair.ApiTypes.ChannelNotFound
 import fr.acinq.eclair.balance.CheckBalance.GlobalBalance
@@ -161,6 +163,14 @@ trait Eclair {
   def verifyMessage(message: ByteVector, recoverableSignature: ByteVector): VerifiedMessage
 
   def sendOnionMessage(intermediateNodes: Seq[PublicKey], destination: Either[PublicKey, Sphinx.RouteBlinding.BlindedRoute], replyPath: Option[Seq[PublicKey]], userCustomContent: ByteVector)(implicit timeout: Timeout): Future[SendOnionMessageResponse]
+
+  def getMasterPubKey: ExtendedPublicKey
+
+  def getAccountPubKey(path: KeyPath): ExtendedPublicKey
+
+  def getDescriptors(): (List[String], List[String])
+
+  def signPsbt(psbt: Psbt): Psbt
 
   def stop(): Future[Unit]
 }
@@ -572,6 +582,14 @@ class EclairImpl(appKit: Kit) extends Eclair with Logging {
       case Attempt.Failure(cause) => Future.successful(SendOnionMessageResponse(sent = false, failureMessage = Some(s"the `content` field is invalid, it must contain encoded tlvs: ${cause.message}"), response = None))
     }
   }
+
+  override def getMasterPubKey: ExtendedPublicKey = this.appKit.nodeParams.channelKeyManager.getAccountPubKey(KeyPath(""))
+
+  override def getAccountPubKey(path: KeyPath): ExtendedPublicKey = this.appKit.nodeParams.channelKeyManager.getAccountPubKey(path)
+
+  override def signPsbt(psbt: Psbt): Psbt = this.appKit.nodeParams.channelKeyManager.signPsbt(psbt)
+
+  override def getDescriptors(): (List[String], List[String]) = this.appKit.nodeParams.channelKeyManager.getDescriptors()
 
   override def stop(): Future[Unit] = {
     // README: do not make this smarter or more complex !

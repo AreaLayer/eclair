@@ -16,17 +16,23 @@
 
 package fr.acinq.eclair.crypto.keymanager
 
+import fr.acinq.bitcoin.psbt.Psbt
+
 import java.io.File
 import java.nio.file.Files
 import fr.acinq.bitcoin.scalacompat.Crypto.{PrivateKey, PublicKey}
 import fr.acinq.bitcoin.scalacompat.DeterministicWallet.KeyPath
-import fr.acinq.bitcoin.scalacompat.{Block, ByteVector32, DeterministicWallet}
+import fr.acinq.bitcoin.scalacompat.{Block, ByteVector32, DeterministicWallet, MnemonicCode}
 import fr.acinq.eclair.Setup.Seeds
 import fr.acinq.eclair.channel.ChannelConfig
 import fr.acinq.eclair.crypto.ShaChain
+import fr.acinq.eclair.transactions.Scripts
 import fr.acinq.eclair.{NodeParams, TestConstants, TestUtils}
 import org.scalatest.funsuite.AnyFunSuite
 import scodec.bits._
+
+import java.util.Base64
+import scala.jdk.CollectionConverters.MapHasAsScala
 
 
 class LocalChannelKeyManagerSpec extends AnyFunSuite {
@@ -140,5 +146,36 @@ class LocalChannelKeyManagerSpec extends AnyFunSuite {
 
     val channelSeedContent = ByteVector(Files.readAllBytes(channelSeedDatFile.toPath))
     assert(seed == channelSeedContent)
+  }
+
+  test("sign psbt") {
+    import fr.acinq.bitcoin.scalacompat.KotlinUtils._
+    val seed = ByteVector.fromValidHex("817a9c8e6ba36f083d7e68b5ee89ce74fde9ef294a724a5efc5cef2b88db057f")
+    val master = DeterministicWallet.generate(seed)
+    val channelKeyManager = new LocalChannelKeyManager(seed, Block.TestnetGenesisBlock.hash)
+    val accountPub = channelKeyManager.getAccountPubKey(KeyPath("84'/1'/0'/0"))
+    val encoded = DeterministicWallet.encode(accountPub, DeterministicWallet.tpub)
+    assert(encoded == "tpubDFTu6FhLqfTBLMd7BvGkyH1h4XBw7XoKWfnNNWw5Sp8V6aC55EhgPTVNAYvBwBXQ8EGnMqaZi3dpdSzhMbD4Z7ivZiaVKNMUkXVjDU1CDuE")
+    val psbt = Psbt.read(Base64.getDecoder.decode("cHNidP8BAH0CAAAAAfZbQp67G4BOZRJN5C+HwJ2n8JEJlZbIoxwBWH1eVt9DAQAAAAD9////AkBCDwAAAAAAIgAgh/5qkoOO3aNoYKOQF4tHSyBBmZdNLw9ljVfNUpqJIhI0weOUAAAAABYAFO+7LxM154bSNenWlI7l2bMPpUGhAAAAAAABAH0CAAAAATxs5rzfqG2rD7YPMETbgmLLImkwWZWDi7piq3egpkilAAAAAAD9////AkBCDwAAAAAAIgAgsA9umvDrO5o4Rh/OpPIMwjNxTKzkjusx/yXGcZzRZFkaXfOUAAAAABYAFIJAohiSQyBq3Ito/4Gvn12FhnsLAAAAAAEBHxpd85QAAAAAFgAUgkCiGJJDIGrci2j/ga+fXYWGewsiBgNEFzWiJdRjTbACiFPlwToi4ve67O6MaEWhcq2DF8z8DxwYnvX+VAAAgAEAAIAAAACAAAAAAAEAAAAAAAAAACICAroB1jpR34FLQCAieOBpUGFS54XnCQvCfT11fhvTXqD4FAAAAAABAAAAAgAAAAMAAAAEAAAAIgIDmFo7Ffxit01npDFhaeDY8oLgMzsOgwUGS8tW04cbafQs5+GWKrlH8EFgYQgDBIQVIFz85LSsrK5bbRJnBgHLgViGRJQ/AQAAgAAAAIAAIgICKUnY40Uzj0NxQRQS+QnrjizCjhOOaZVHj9vBM4ZcsG0cGJ71/lQAAIABAACAAAAAgAAAAAABAAAAAgAAAAA=")).getRight
+    val psbt1 = channelKeyManager.signPsbt(psbt)
+    val tx = psbt1.extract()
+    assert(tx.isRight)
+  }
+
+  test("compute descriptor checksums") {
+    val data = Seq(
+      "pkh([6ded4eb8/44h/0h/0h]xpub6C6N5WVF5zmurBR52MZZj8Jxm6eDiKyM4wFCm7xTYBEsAvJPqBKp2u2K7RTsZaYDN8duBWq4acrD4vrwjaKHTYuntGjL334nVHtLNuaj5Mu/0/*)#5mzpq0w6",
+      "wpkh([6ded4eb8/84h/0h/0h]xpub6CDeom4xT3Wg7BuyXU2Sd9XerTKttyfxRwJE36mi5HxFYpYdtdwM76Zx8swPnc6zxuArMYJgjNy91fJ13YtGPHgf49YqA8KdXg6D69tzNFh/0/*)#refya6f0",
+      "sh(wpkh([6ded4eb8/49h/0h/0h]xpub6Cb8jR9kYsfC6kj9CsE18SyudWjW2V3FnBFkT2oqq6n7NWWvJrjhFin3sAYg8X7ApX8iPophBa98mo4nMvSxnqrXvpnwaRopecQz859Ai1s/0/*))#xrhyhtvl",
+      "tr([6ded4eb8/86h/0h/0h]xpub6CDp1iw76taes3pkqfiJ6PYhwURkaYksJ62CrrdTVr6ow9wR9mKAtUGoZQqb8pRDiq2F8k31tYrrJjVGTRSLYGQ7nYpmewH94ThsAgDxJ4h/0/*)#2nm7drky",
+      "pkh([6ded4eb8/44h/0h/0h]xpub6C6N5WVF5zmurBR52MZZj8Jxm6eDiKyM4wFCm7xTYBEsAvJPqBKp2u2K7RTsZaYDN8duBWq4acrD4vrwjaKHTYuntGjL334nVHtLNuaj5Mu/1/*)#908qa67z",
+      "wpkh([6ded4eb8/84h/0h/0h]xpub6CDeom4xT3Wg7BuyXU2Sd9XerTKttyfxRwJE36mi5HxFYpYdtdwM76Zx8swPnc6zxuArMYJgjNy91fJ13YtGPHgf49YqA8KdXg6D69tzNFh/1/*)#jdv9q0eh",
+      "sh(wpkh([6ded4eb8/49h/0h/0h]xpub6Cb8jR9kYsfC6kj9CsE18SyudWjW2V3FnBFkT2oqq6n7NWWvJrjhFin3sAYg8X7ApX8iPophBa98mo4nMvSxnqrXvpnwaRopecQz859Ai1s/1/*))#nzej05eq",
+      "tr([6ded4eb8/86h/0h/0h]xpub6CDp1iw76taes3pkqfiJ6PYhwURkaYksJ62CrrdTVr6ow9wR9mKAtUGoZQqb8pRDiq2F8k31tYrrJjVGTRSLYGQ7nYpmewH94ThsAgDxJ4h/1/*)#m87lskxu"
+    )
+    data.foreach(dnc => {
+      val Array(desc, checksum) = dnc.split('#')
+      assert(checksum == LocalChannelKeyManager.descriptorChecksum(desc))
+    })
   }
 }

@@ -114,12 +114,7 @@ object OnChainWallet {
 
   final case class OnChainBalance(confirmed: Satoshi, unconfirmed: Satoshi)
 
-  final case class MakeFundingTxResponse(psbt: Psbt, fundingTxOutputIndex: Int, fee: Satoshi) {
-    def fundingTx(): Either[Throwable, Transaction] = {
-      val extracted = psbt.extract()
-      if (extracted.isLeft) Left(new RuntimeException(extracted.getLeft.toString)) else Right(KotlinUtils.kmp2scala(extracted.getRight))
-    }
-  }
+  final case class MakeFundingTxResponse(fundingTx: Transaction, fundingTxOutputIndex: Int, fee: Satoshi)
 
   final case class FundTransactionResponse(tx: Transaction, fee: Satoshi, changePosition: Option[Int]) {
     val amountIn: Satoshi = fee + tx.txOut.map(_.amount).sum

@@ -16,8 +16,9 @@
 
 package fr.acinq.eclair.crypto.keymanager
 
+import fr.acinq.bitcoin.psbt.Psbt
 import fr.acinq.bitcoin.scalacompat.Crypto.{PrivateKey, PublicKey}
-import fr.acinq.bitcoin.scalacompat.DeterministicWallet.ExtendedPublicKey
+import fr.acinq.bitcoin.scalacompat.DeterministicWallet.{ExtendedPublicKey, KeyPath}
 import fr.acinq.bitcoin.scalacompat.{ByteVector64, Crypto, DeterministicWallet, Protocol}
 import fr.acinq.eclair.channel.{ChannelConfig, LocalParams}
 import fr.acinq.eclair.transactions.Transactions.{CommitmentFormat, TransactionWithInputInfo, TxOwner}
@@ -99,6 +100,12 @@ trait ChannelKeyManager {
    * @return the signature of the channel announcement with the channel's funding private key
    */
   def signChannelAnnouncement(witness: ByteVector, fundingKeyPath: DeterministicWallet.KeyPath): ByteVector64
+
+  def getAccountPubKey(keyPath: KeyPath): ExtendedPublicKey
+
+  def getDescriptors(): (List[String], List[String])
+
+  def signPsbt(psbt: Psbt): Psbt
 }
 
 object ChannelKeyManager {
