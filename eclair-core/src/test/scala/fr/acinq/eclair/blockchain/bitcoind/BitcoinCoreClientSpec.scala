@@ -68,7 +68,7 @@ class BitcoinCoreClientSpec extends TestKitBaseClass with BitcoindService with A
 
     bitcoinClient.makeFundingTx(Block.RegtestGenesisBlock.hash, ExtendedPublicKey(randomKey().publicKey.value, randomBytes32(), 4, KeyPath("m/1/2/3/4"), 0), randomKey().publicKey, 50 millibtc, FeeratePerKw(10000 sat)).pipeTo(sender.ref)
     val error = sender.expectMsgType[Failure].cause.asInstanceOf[JsonRPCError].error
-    assert(error.message.contains("cannot sign psbt"))
+    assert(error.message.contains("Please enter the wallet passphrase with walletpassphrase first."))
 
     sender.send(bitcoincli, BitcoinReq("walletpassphrase", walletPassword, 3600)) // wallet stay unlocked for 3600s
     sender.expectMsgType[JValue]
