@@ -96,7 +96,7 @@ class ReplaceableTxPublisherSpec extends TestKitBaseClass with AnyFunSuiteLike w
     }
 
     def getMempoolTxs(expectedTxCount: Int): Seq[MempoolTx] = {
-      awaitCond(getMempool().size == expectedTxCount, interval = 200 milliseconds)
+      awaitCond(getMempool().size == expectedTxCount, interval = 200 milliseconds, max = 5 minutes)
       getMempool().map(tx => {
         wallet.getMempoolTx(tx.txid).pipeTo(probe.ref)
         probe.expectMsgType[MempoolTx]

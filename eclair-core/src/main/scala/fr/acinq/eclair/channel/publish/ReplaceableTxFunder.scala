@@ -23,7 +23,7 @@ import fr.acinq.bitcoin.psbt.Psbt
 import fr.acinq.bitcoin.scalacompat.{ByteVector32, KotlinUtils, OutPoint, Satoshi, Script, ScriptWitness, Transaction, TxIn, TxOut, computeScriptAddress}
 import fr.acinq.eclair.NotificationsLogger.NotifyNodeOperator
 import fr.acinq.eclair.blockchain.bitcoind.rpc.BitcoinCoreClient
-import fr.acinq.eclair.blockchain.bitcoind.rpc.BitcoinCoreClient.{FundPsbtOptions, FundPsbtResponse}
+import fr.acinq.eclair.blockchain.bitcoind.rpc.BitcoinCoreClient.{FundPsbtInput, FundPsbtOptions, FundPsbtResponse}
 import fr.acinq.eclair.blockchain.fee.FeeratePerKw
 import fr.acinq.eclair.channel.Commitments
 import fr.acinq.eclair.channel.publish.ReplaceableTxPrePublisher._
@@ -477,17 +477,33 @@ private class ReplaceableTxFunder(nodeParams: NodeParams,
       }
     }
 
+    val input = FundPsbtInput(anchorTx.txInfo.input.outPoint.txid, anchorTx.txInfo.input.outPoint.index.toInt)
+    val options = FundPsbtOptions(anchorFeerate, lockUtxos = true, changePosition = Some(1), add_inputs = true)
     for {
-      fundPsbtResponse <- bitcoinClient.fundPsbt(Seq(address -> dummyChangeAmount), 0, FundPsbtOptions(anchorFeerate, lockUtxos = true, changePosition = Some(1)))
-      psbt <- makeSingleOutput(fundPsbtResponse)
+      newaddress <- bitcoinClient.getReceiveAddress()
+      fundPsbtResponse <- bitcoinClient.fundPsbt(Seq(input), Seq(newaddress -> dummyChangeAmount), 0, options)
+      psbt = fundPsbtResponse.psbt
       // NB: we insert the anchor input in the *first* position because our signing helpers only sign input #0.
       tx = KotlinUtils.kmp2scala(psbt.getGlobal.getTx)
-      unsignedTx = anchorTx.updateTx(tx.copy(txIn = anchorTx.txInfo.tx.txIn.head +: tx.txIn))
+      unsignedTx = anchorTx.updateTx(tx)
       totalAmountIn = fundPsbtResponse.amountIn + AnchorOutputsCommitmentFormat.anchorAmount
-      adjustedTx = adjustAnchorOutputChange(unsignedTx, commitTx, totalAmountIn, commitFeerate, targetFeerate, dustLimit)
+      adjustedTx = unsignedTx
     } yield {
       (adjustedTx, totalAmountIn)
     }
+    //
+    //    println(anchorTx.txInfo.tx)
+    //    for {
+    //      fundPsbtResponse <- bitcoinClient.fundPsbt(Seq(address -> dummyChangeAmount), 0, FundPsbtOptions(anchorFeerate, lockUtxos = true, changePosition = Some(1)))
+    //      psbt <- makeSingleOutput(fundPsbtResponse)
+    //      // NB: we insert the anchor input in the *first* position because our signing helpers only sign input #0.
+    //      tx = KotlinUtils.kmp2scala(psbt.getGlobal.getTx)
+    //      unsignedTx = anchorTx.updateTx(tx.copy(txIn = anchorTx.txInfo.tx.txIn.head +: tx.txIn))
+    //      totalAmountIn = fundPsbtResponse.amountIn + AnchorOutputsCommitmentFormat.anchorAmount
+    //      adjustedTx = adjustAnchorOutputChange(unsignedTx, commitTx, totalAmountIn, commitFeerate, targetFeerate, dustLimit)
+    //    } yield {
+    //      (adjustedTx, totalAmountIn)
+    //    }
   }
 
   private def addInputs(htlcTx: HtlcWithWitnessData, targetFeerate: FeeratePerKw, commitments: Commitments): Future[(HtlcWithWitnessData, Satoshi)] = {

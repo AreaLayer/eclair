@@ -261,7 +261,6 @@ class BitcoinCoreClient(val rpcClient: BitcoinJsonRPCClient) extends OnChainWall
       ProcessPsbtResponse(decoded.getRight, complete)
     })
   }
-
   private def signPsbtOrUnlock(psbt: Psbt)(implicit ec: ExecutionContext): Future[ProcessPsbtResponse] = {
     val f = for {
       ProcessPsbtResponse(psbt1, complete) <- processPsbt(psbt)
