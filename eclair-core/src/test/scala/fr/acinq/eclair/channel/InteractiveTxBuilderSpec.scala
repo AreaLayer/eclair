@@ -633,10 +633,6 @@ class InteractiveTxBuilderSpec extends TestKitBaseClass with AnyFunSuiteLike wit
       f.forwardAlice2Bob[TxAddOutput]
       // Alice <-- tx_complete --- Bob
       f.forwardBob2Alice[TxComplete]
-      // Alice --- tx_add_output --> Bob
-      f.forwardAlice2Bob[TxAddOutput]
-      // Alice <-- tx_complete --- Bob
-      f.forwardBob2Alice[TxComplete]
       // Alice --- tx_complete --> Bob
       f.forwardAlice2Bob[TxComplete]
       // Alice --- commit_sig --> Bob
@@ -647,7 +643,7 @@ class InteractiveTxBuilderSpec extends TestKitBaseClass with AnyFunSuiteLike wit
       val txB1 = bob2alice.expectMsgType[Succeeded].sharedTx.asInstanceOf[PartiallySignedSharedTransaction]
       alice ! ReceiveTxSigs(txB1.localSigs)
       val txA1 = alice2bob.expectMsgType[Succeeded].sharedTx.asInstanceOf[FullySignedSharedTransaction]
-      assert(targetFeerate * 0.9 <= txA1.feerate && txA1.feerate <= targetFeerate * 1.25)
+      assert(targetFeerate * 0.9 <= txA1.feerate && txA1.feerate <= targetFeerate * 1.5)
       val probe = TestProbe()
       walletA.publishTransaction(txA1.signedTx).pipeTo(probe.ref)
       probe.expectMsg(txA1.signedTx.txid)
