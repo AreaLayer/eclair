@@ -110,11 +110,11 @@ object NodeRelay {
   def validateRelay(nodeParams: NodeParams, upstream: Upstream.Trampoline, payloadOut: IntermediatePayload.NodeRelay.Standard): Option[FailureMessage] = {
     val fee = nodeFee(nodeParams.relayParams.minTrampolineFees, payloadOut.amountToForward)
     if (upstream.amountIn - payloadOut.amountToForward < fee) {
-      Some(TrampolineFeeInsufficient)
+      Some(TrampolineFeeInsufficient())
     } else if (upstream.expiryIn - payloadOut.outgoingCltv < nodeParams.channelConf.expiryDelta) {
-      Some(TrampolineExpiryTooSoon)
+      Some(TrampolineExpiryTooSoon())
     } else if (payloadOut.outgoingCltv <= CltvExpiry(nodeParams.currentBlockHeight)) {
-      Some(TrampolineExpiryTooSoon)
+      Some(TrampolineExpiryTooSoon())
     } else if (payloadOut.invoiceFeatures.isDefined && payloadOut.paymentSecret.isEmpty) {
       Some(InvalidOnionPayload(UInt64(8), 0)) // payment secret field is missing
     } else if (payloadOut.amountToForward <= MilliSatoshi(0)) {
@@ -146,14 +146,14 @@ object NodeRelay {
         // We have direct channels to the target node, but not enough outgoing liquidity to use those channels.
         // The routing fee proposed by the sender was high enough to find alternative, indirect routes, but didn't yield
         // any result so we tell them that we don't have enough outgoing liquidity at the moment.
-        Some(TemporaryNodeFailure)
-      case LocalFailure(_, _, BalanceTooLow) :: Nil => Some(TrampolineFeeInsufficient) // a higher fee/cltv may find alternative, indirect routes
-      case _ if routeNotFound => Some(TrampolineFeeInsufficient) // if we couldn't find routes, it's likely that the fee/cltv was insufficient
+        Some(TemporaryNodeFailure())
+      case LocalFailure(_, _, BalanceTooLow) :: Nil => Some(TrampolineFeeInsufficient()) // a higher fee/cltv may find alternative, indirect routes
+      case _ if routeNotFound => Some(TrampolineFeeInsufficient()) // if we couldn't find routes, it's likely that the fee/cltv was insufficient
       case _ =>
         // Otherwise, we try to find a downstream error that we could decrypt.
         val outgoingNodeFailure = failures.collectFirst { case RemoteFailure(_, _, e) if e.originNode == nextPayload.outgoingNodeId => e.failureMessage }
         val otherNodeFailure = failures.collectFirst { case RemoteFailure(_, _, e) => e.failureMessage }
-        val failure = outgoingNodeFailure.getOrElse(otherNodeFailure.getOrElse(TemporaryNodeFailure))
+        val failure = outgoingNodeFailure.getOrElse(otherNodeFailure.getOrElse(TemporaryNodeFailure()))
         Some(failure)
     }
   }
@@ -226,17 +226,17 @@ class NodeRelay private(nodeParams: NodeParams,
     Behaviors.receiveMessagePartial {
       case WrappedCurrentBlockHeight(blockHeight) if blockHeight >= safetyBlock =>
         context.log.warn(s"rejecting async payment at block $blockHeight; was not triggered ${nodeParams.relayParams.asyncPaymentsParams.cancelSafetyBeforeTimeout} safety blocks before upstream cltv expiry at ${upstream.expiryIn}")
-        rejectPayment(upstream, Some(TemporaryNodeFailure)) // TODO: replace failure type when async payment spec is finalized
+        rejectPayment(upstream, Some(TemporaryNodeFailure())) // TODO: replace failure type when async payment spec is finalized
         stopping()
       case WrappedCurrentBlockHeight(blockHeight) if blockHeight >= timeoutBlock =>
         context.log.warn(s"rejecting async payment at block $blockHeight; was not triggered after waiting ${nodeParams.relayParams.asyncPaymentsParams.holdTimeoutBlocks} blocks")
-        rejectPayment(upstream, Some(TemporaryNodeFailure)) // TODO: replace failure type when async payment spec is finalized
+        rejectPayment(upstream, Some(TemporaryNodeFailure())) // TODO: replace failure type when async payment spec is finalized
         stopping()
-      case WrappedCurrentBlockHeight(blockHeight) =>
+      case _: WrappedCurrentBlockHeight =>
         Behaviors.same
       case CancelAsyncPayment =>
         context.log.warn(s"payment sender canceled a waiting async payment")
-        rejectPayment(upstream, Some(TemporaryNodeFailure)) // TODO: replace failure type when async payment spec is finalized
+        rejectPayment(upstream, Some(TemporaryNodeFailure())) // TODO: replace failure type when async payment spec is finalized
         stopping()
       case RelayAsyncPayment =>
         doSend(upstream, nextPayload, nextPacket)

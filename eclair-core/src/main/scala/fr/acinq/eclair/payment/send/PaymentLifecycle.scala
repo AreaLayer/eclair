@@ -183,7 +183,7 @@ class PaymentLifecycle(nodeParams: NodeParams, cfg: SendPaymentConfig, router: A
           router ! Router.RouteCouldRelay(stoppedRoute)
         }
         failureMessage match {
-          case TemporaryChannelFailure(update) =>
+          case TemporaryChannelFailure(update, _) =>
             d.route.hops.find(_.nodeId == nodeId) match {
               case Some(failingHop) if ChannelRelayParams.areSame(failingHop.params, ChannelRelayParams.FromAnnouncement(update), ignoreHtlcSize = true) =>
                 router ! Router.ChannelCouldNotRelay(stoppedRoute.amount, failingHop)

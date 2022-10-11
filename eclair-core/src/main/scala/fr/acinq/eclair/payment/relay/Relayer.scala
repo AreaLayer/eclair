@@ -72,7 +72,7 @@ class Relayer(nodeParams: NodeParams, router: ActorRef, register: ActorRef, paym
         case Right(r: IncomingPaymentPacket.NodeRelayPacket) =>
           if (!nodeParams.enableTrampolinePayment) {
             log.warning(s"rejecting htlc #${add.id} from channelId=${add.channelId} to nodeId=${r.innerPayload.outgoingNodeId} reason=trampoline disabled")
-            PendingCommandsDb.safeSend(register, nodeParams.db.pendingCommands, add.channelId, CMD_FAIL_HTLC(add.id, Right(RequiredNodeFeatureMissing), commit = true))
+            PendingCommandsDb.safeSend(register, nodeParams.db.pendingCommands, add.channelId, CMD_FAIL_HTLC(add.id, Right(RequiredNodeFeatureMissing()), commit = true))
           } else {
             nodeRelayer ! NodeRelayer.Relay(r)
           }
@@ -81,7 +81,7 @@ class Relayer(nodeParams: NodeParams, router: ActorRef, register: ActorRef, paym
           val delay_opt = badOnion match {
             // We are the introduction point of a blinded path: we add a non-negligible delay to make it look like it
             // could come from a downstream node.
-            case InvalidOnionBlinding(_) if add.blinding_opt.isEmpty => Some(500.millis + Random.nextLong(1500).millis)
+            case _: InvalidOnionBlinding if add.blinding_opt.isEmpty => Some(500.millis + Random.nextLong(1500).millis)
             case _ => None
           }
           val cmdFail = CMD_FAIL_MALFORMED_HTLC(add.id, badOnion.onionHash, badOnion.code, delay_opt, commit = true)
