@@ -106,7 +106,12 @@ class PeerSpec extends TestKitBaseClass with FixtureAnyFunSuiteLike with Paralle
     val probe = TestProbe()
     connect(remoteNodeId, peer, peerConnection, switchboard, channels = Set(ChannelCodecsSpec.normal))
     probe.send(peer, Peer.GetPeerInfo(None))
-    probe.expectMsg(PeerInfo(peer, remoteNodeId, Peer.CONNECTED, Some(fakeIPAddress), 1))
+    val peerInfo = probe.expectMsgType[PeerInfo]
+    assert(peerInfo.peer == peer)
+    assert(peerInfo.nodeId == remoteNodeId)
+    assert(peerInfo.state == Peer.CONNECTED)
+    assert(peerInfo.address.contains(fakeIPAddress))
+    assert(peerInfo.channels.size == 1)
   }
 
   test("fail to connect if no address provided or found") { f =>
@@ -540,12 +545,12 @@ class PeerSpec extends TestKitBaseClass with FixtureAnyFunSuiteLike with Paralle
     probe.send(peer, Peer.GetPeerInfo(Some(probe.ref.toTyped)))
     val peerInfo1 = probe.expectMsgType[Peer.PeerInfo]
     assert(peerInfo1.state == Peer.DISCONNECTED)
-    assert(peerInfo1.channels == 1)
+    assert(peerInfo1.channels.size == 1)
     peer ! ChannelIdAssigned(probe.ref, remoteNodeId, randomBytes32(), randomBytes32())
     probe.send(peer, Peer.GetPeerInfo(Some(probe.ref.toTyped)))
     val peerInfo2 = probe.expectMsgType[Peer.PeerInfo]
     assert(peerInfo2.state == Peer.DISCONNECTED)
-    assert(peerInfo2.channels == 2)
+    assert(peerInfo2.channels.size == 2)
   }
 
   test("notify when last channel is closed") { f =>
